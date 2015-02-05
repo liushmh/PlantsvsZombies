@@ -2,28 +2,30 @@
  * Created by gt60 on 13-11-15.
  */
 var PZLoaderScene = cc.Scene.extend({
-    resources:null,
-    callback:null,
+    resources: null,
+    callback: null,
 
-    _dirt:null,
+    _dirt: null,
     _grass: null,
-    _cap:null,
+    _cap: null,
 
     _bgLayer: null,
     _label: null,
 
-    _winSize:null,
-    _centerPos:null,
+    _winSize: null,
+    _centerPos: null,
 
-    _number:0,
-    _count:0,
-    _totalNum:0,
-    ctor: function () {
+    _number: 0,
+    _count: 0,
+    _totalNum: 0,
+    _initComplete: false,
+
+    ctor: function() {
         cc.Scene.prototype.ctor.call(this);
         this._winSize = cc.director.getWinSize();
         this._centerPos = cc.p(this._winSize.width / 2, this._winSize.height / 2);
     },
-    init:function(){
+    init: function() {
         cc.Scene.prototype.init.call(this);
 
         //logo
@@ -31,7 +33,7 @@ var PZLoaderScene = cc.Scene.extend({
 
         var _this = this;
         var dirt = new Image();
-        dirt.addEventListener("load", function () {
+        dirt.addEventListener("load", function() {
             _this._initDirt(dirt);
             this.removeEventListener('load', arguments.callee, false);
         });
@@ -40,7 +42,7 @@ var PZLoaderScene = cc.Scene.extend({
         dirt.height = 53;
 
         var grass = new Image();
-        grass.addEventListener("load", function () {
+        grass.addEventListener("load", function() {
             _this._initGrass(grass);
             this.removeEventListener('load', arguments.callee, false);
         });
@@ -49,7 +51,7 @@ var PZLoaderScene = cc.Scene.extend({
         grass.height = 33;
 
         var cap = new Image();
-        cap.addEventListener("load", function () {
+        cap.addEventListener("load", function() {
             _this._initCap(cap);
             this.removeEventListener('load', arguments.callee, false);
         });
@@ -71,7 +73,7 @@ var PZLoaderScene = cc.Scene.extend({
         this._label.y = this._centerPos.y + -logoHeight / 2 - 10;
         this._bgLayer.addChild(this._label, 10);
     },
-    _initDirt:function (texture) {
+    _initDirt: function(texture) {
         var tex2d = new cc.Texture2D();
         tex2d.initWithElement(texture);
         tex2d.handleLoadedTexture();
@@ -82,7 +84,7 @@ var PZLoaderScene = cc.Scene.extend({
         this._number++;
         this._initStage();
     },
-    _initGrass:function (texture) {
+    _initGrass: function(texture) {
         var tex2d = new cc.Texture2D();
         tex2d.initWithElement(texture);
         tex2d.handleLoadedTexture();
@@ -96,7 +98,7 @@ var PZLoaderScene = cc.Scene.extend({
         this._number++;
         this._initStage();
     },
-    _initCap:function (texture) {
+    _initCap: function(texture) {
         var tex2d = new cc.Texture2D();
         tex2d.initWithElement(texture);
         tex2d.handleLoadedTexture();
@@ -108,35 +110,36 @@ var PZLoaderScene = cc.Scene.extend({
         this._number++;
         this._initStage();
     },
-    _initStage: function () {
+    _initStage: function() {
         if (this._number >= 3) {
             this._logoFadeIn();
+            this._initComplete = true;
         }
     },
-    onEnter: function () {
+    onEnter: function() {
         cc.Node.prototype.onEnter.call(this);
         this.scheduleOnce(this._startLoading, 0.5);
     },
-    onExit: function () {
+    onExit: function() {
         cc.Node.prototype.onExit.call(this);
         var tmpStr = "Loading... 0%";
         this._label.setString(tmpStr);
     },
-    initWithResources: function (resources, callback) {
+    initWithResources: function(resources, callback) {
         this._resources = resources;
         this._callback = callback;
         this._totalNum = resources.length;
     },
-    _startLoading: function () {
+    _startLoading: function() {
         var _this = this;
-        var countFun = function (result, count) {
+        var countFun = function(result, count) {
             _this._count = count;
         };
 
         cc.loader.load(this._resources, countFun, this._callback);
         this.schedule(this._updatePercent);
     },
-    _logoFadeIn: function () {
+    _logoFadeIn: function() {
         var logoAction = cc.Spawn.create(
             cc.EaseBounce.create(cc.MoveBy.create(0.25, cc.p(0, 10))),
             cc.FadeIn.create(0.5));
@@ -150,7 +153,7 @@ var PZLoaderScene = cc.Scene.extend({
         this._cap.runAction(logoAction.clone());
         this._label.runAction(labelAction);
     },
-    _updatePercent: function () {
+    _updatePercent: function() {
         var percent = this._count / this._totalNum * 100 | 0;
 
         var tmpStr = "Loading... " + percent + "%";
@@ -164,13 +167,17 @@ var PZLoaderScene = cc.Scene.extend({
     }
 });
 
-PZLoaderScene.preload = function (resources, callback) {
+PZLoaderScene.preload = function(resources, callback) {
     if (!this._instance) {
         this._instance = new PZLoaderScene();
         this._instance.init();
     }
-    this._instance.initWithResources(resources, callback);
-
-    cc.director.runScene(this._instance);
-
+    var instance = this._instance;
+    var myChecker = setInterval(function() {
+        if (instance._initComplete) {
+            clearInterval(myChecker);
+            instance.initWithResources(resources, callback);
+            cc.director.runScene(instance);
+        }
+    }, 1000);
 };
